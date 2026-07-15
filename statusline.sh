@@ -1,5 +1,5 @@
 #!/bin/bash
-# Line 1: Model | tokens used/total | % used <fullused> | % remain <fullremain> | thinking: on/off | effort
+# Line 1: Model | tokens used/total | % used | thinking: on/off | effort
 # Line 2: current: <progressbar> % | weekly: <progressbar> % | extra: <progressbar> $used/$limit | cost: $X.XX
 # Line 3: resets <time> | resets <datetime> | resets <date> | <duration>
 # Line 4: <projectdir> | <repo owner/name> (<worktree>)
@@ -34,11 +34,6 @@ format_tokens() {
     else
         printf "%d" "$num"
     fi
-}
-
-# Format number with commas (e.g., 134,938)
-format_commas() {
-    printf "%'d" "$1"
 }
 
 # Format milliseconds to compact duration (e.g. 1h 23m, 45m 12s, 12s)
@@ -103,12 +98,8 @@ current=$(( total_input + total_output ))
 used_tokens=$(format_tokens $current)
 total_tokens=$(format_tokens $size)
 
-# Percentages come pre-calculated from Claude Code — no local math
+# Percent of context used — pre-calculated by Claude Code, no local math
 pct_used=$(echo "$input" | jq -r '.context_window.used_percentage // 0' | awk '{printf "%.0f", $1}')
-pct_remain=$(echo "$input" | jq -r '.context_window.remaining_percentage // 0' | awk '{printf "%.0f", $1}')
-
-used_comma=$(format_commas $current)
-remain_comma=$(format_commas $(( size - current )))
 
 # Check thinking status — live session value from the stdin JSON
 thinking_on=false
@@ -118,15 +109,13 @@ thinking_val=$(echo "$input" | jq -r '.thinking.enabled // false')
 # Reasoning effort — absent when the current model doesn't support it
 effort_level=$(echo "$input" | jq -r '.effort.level // empty')
 
-# ===== LINE 1: Model | tokens | % used | % remain | thinking =====
+# ===== LINE 1: Model | tokens used/total | % used | thinking | effort =====
 line1=""
 line1+="${blue}${model_name}${reset}"
 line1+=" ${dim}|${reset} "
 line1+="${orange}${used_tokens} / ${total_tokens}${reset}"
 line1+=" ${dim}|${reset} "
-line1+="${green}${pct_used}% used ${orange}${used_comma}${reset}"
-line1+=" ${dim}|${reset} "
-line1+="${cyan}${pct_remain}% remain ${blue}${remain_comma}${reset}"
+line1+="${green}${pct_used}%${reset}"
 line1+=" ${dim}|${reset} "
 line1+="thinking: "
 if $thinking_on; then
