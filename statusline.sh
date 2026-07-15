@@ -59,7 +59,11 @@ build_bar() {
     [ "$pct" -lt 0 ] 2>/dev/null && pct=0
     [ "$pct" -gt 100 ] 2>/dev/null && pct=100
 
-    local filled=$(( pct * width / 100 ))
+    # Round to nearest cell, but show at least one cell for any non-zero usage
+    # (with only 7 cells, each is ~14%, so flooring hides low percentages).
+    local filled=$(( (pct * width + 50) / 100 ))
+    [ "$filled" -eq 0 ] && [ "$pct" -gt 0 ] && filled=1
+    [ "$filled" -gt "$width" ] && filled=$width
     local empty=$(( width - filled ))
 
     # Color based on usage level
