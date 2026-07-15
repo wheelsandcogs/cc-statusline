@@ -76,9 +76,11 @@ build_bar() {
     else bar_color="$green"
     fi
 
+    # Trailing space after each cell gives the reference "spaced segment" look.
+    # Visible width of the returned bar is therefore 2 * width.
     local filled_str="" empty_str=""
-    for ((i=0; i<filled; i++)); do filled_str+="●"; done
-    for ((i=0; i<empty; i++)); do empty_str+="○"; done
+    for ((i=0; i<filled; i++)); do filled_str+="▰ "; done
+    for ((i=0; i<empty; i++)); do empty_str+="▱ "; done
 
     printf "${bar_color}${filled_str}${dim}${empty_str}${reset}"
 }
@@ -349,9 +351,10 @@ line3=""
 sep=" ${dim}|${reset} "
 
 if [ -n "$usage_data" ] && echo "$usage_data" | jq -e . >/dev/null 2>&1; then
-    bar_width=10
-    col1w=23
-    col2w=22
+    bar_width=7
+    # Spaced bar is 2*bar_width wide. Column width = label + bar + up to 3-digit % + margin.
+    col1w=$(( 9 + 2 * bar_width + 4 ))   # "current: " label
+    col2w=$(( 8 + 2 * bar_width + 4 ))   # "weekly: " label
 
     # ---- 5-hour (current) ----
     five_hour_pct=$(echo "$usage_data" | jq -r '.five_hour.utilization // 0' | awk '{printf "%.0f", $1}')
@@ -359,9 +362,9 @@ if [ -n "$usage_data" ] && echo "$usage_data" | jq -e . >/dev/null 2>&1; then
     five_hour_reset=$(format_reset_time "$five_hour_reset_iso" "time")
     five_hour_bar=$(build_bar "$five_hour_pct" "$bar_width")
 
-    # Calculate visible length: "current: " + bar + " " + "XX%"
-    col1_bar_vis_len=$(( 9 + bar_width + 1 + ${#five_hour_pct} + 1 ))
-    col1_bar="${white}current:${reset} ${five_hour_bar} ${cyan}${five_hour_pct}%${reset}"
+    # Visible length: "current: " + spaced bar (2*bar_width, trailing space) + "XX%"
+    col1_bar_vis_len=$(( 9 + 2 * bar_width + ${#five_hour_pct} + 1 ))
+    col1_bar="${white}current:${reset} ${five_hour_bar}${cyan}${five_hour_pct}%${reset}"
     col1_bar=$(pad_column "$col1_bar" "$col1_bar_vis_len" "$col1w")
 
     col1_reset_plain="resets ${five_hour_reset}"
@@ -374,8 +377,8 @@ if [ -n "$usage_data" ] && echo "$usage_data" | jq -e . >/dev/null 2>&1; then
     seven_day_reset=$(format_reset_time "$seven_day_reset_iso" "datetime")
     seven_day_bar=$(build_bar "$seven_day_pct" "$bar_width")
 
-    col2_bar_vis_len=$(( 8 + bar_width + 1 + ${#seven_day_pct} + 1 ))
-    col2_bar="${white}weekly:${reset} ${seven_day_bar} ${cyan}${seven_day_pct}%${reset}"
+    col2_bar_vis_len=$(( 8 + 2 * bar_width + ${#seven_day_pct} + 1 ))
+    col2_bar="${white}weekly:${reset} ${seven_day_bar}${cyan}${seven_day_pct}%${reset}"
     col2_bar=$(pad_column "$col2_bar" "$col2_bar_vis_len" "$col2w")
 
     col2_reset_plain="resets ${seven_day_reset}"
@@ -395,7 +398,7 @@ if [ -n "$usage_data" ] && echo "$usage_data" | jq -e . >/dev/null 2>&1; then
         # Next month 1st for reset date (macOS compatible)
         extra_reset="1st $(date -v+1m -v1d +%b 2>/dev/null || date -d "$(date +%Y-%m-01) +1 month" +%b 2>/dev/null)"
 
-        col3_bar="${white}extra:${reset} ${extra_bar} ${cyan}\$${extra_used}/\$${extra_limit}${reset}"
+        col3_bar="${white}extra:${reset} ${extra_bar}${cyan}\$${extra_used}/\$${extra_limit}${reset}"
         col3_reset="${white}resets ${extra_reset}${reset}"
     fi
 
