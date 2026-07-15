@@ -1,6 +1,6 @@
 #!/bin/bash
 # Line 1: Model | tokens used/total % used | thinking: on/off | effort | <duration>
-# Line 2: current: <progressbar> % (<reset>) | weekly: <progressbar> % (<reset>) | extra: <progressbar> $used/$limit (<reset>) | cost: $X.XX
+# Line 2: current: <progressbar> % (<reset>) | weekly: <progressbar> % (<reset>) | cost: $X.XX
 # Line 3: <projectdir> | <repo owner/name> (<worktree>)
 
 set -f  # disable globbing
@@ -357,25 +357,8 @@ if [ -n "$usage_data" ] && echo "$usage_data" | jq -e . >/dev/null 2>&1; then
     col2="${white}weekly:${reset} ${seven_day_bar}  ${cyan}${seven_day_pct}%${reset}"
     [ -n "$seven_day_reset" ] && col2+=" ${dim}(${seven_day_reset})${reset}"
 
-    # ---- Extra usage ----
-    col3=""
-    extra_enabled=$(echo "$usage_data" | jq -r '.extra_usage.is_enabled // false')
-    if [ "$extra_enabled" = "true" ]; then
-        extra_pct=$(echo "$usage_data" | jq -r '.extra_usage.utilization // 0' | awk '{printf "%.0f", $1}')
-        extra_used=$(echo "$usage_data" | jq -r '.extra_usage.used_credits // 0' | awk '{printf "%.2f", $1/100}')
-        extra_limit=$(echo "$usage_data" | jq -r '.extra_usage.monthly_limit // 0' | awk '{printf "%.2f", $1/100}')
-        extra_bar=$(build_bar "$extra_pct" "$bar_width")
-
-        # Next month 1st for reset date (macOS compatible)
-        extra_reset="1st $(date -v+1m -v1d +%b 2>/dev/null || date -d "$(date +%Y-%m-01) +1 month" +%b 2>/dev/null)"
-
-        col3="${white}extra:${reset} ${extra_bar}  ${cyan}\$${extra_used}/\$${extra_limit}${reset}"
-        [ -n "$extra_reset" ] && col3+=" ${dim}(${extra_reset})${reset}"
-    fi
-
     # Assemble line 2: bars row, each with its reset time in parentheses
     line2="${col1}${sep}${col2}"
-    [ -n "$col3" ] && line2+="${sep}${col3}"
 fi
 
 # Append cost to the bars row (line 2)

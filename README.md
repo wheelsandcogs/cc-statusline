@@ -14,7 +14,7 @@ statswales-backend | ⎇ owner/repo (feature-branch)
 ```
 
 1. **Model** · tokens used / context size · % used · thinking on/off · reasoning effort · session duration
-2. **Usage bars** — current 5-hour window, 7-day window, extra usage (when enabled), each with its reset time in parentheses · session cost
+2. **Usage bars** — current 5-hour window and 7-day window, each with its reset time in parentheses · session cost
 3. **Workspace** — project directory · `owner/repo` · git worktree (when inside one)
 
 Each segment hides itself when its data is unavailable, so nothing renders
@@ -41,16 +41,16 @@ settings at it. In `~/.claude/settings.json`:
 ```
 
 Claude Code pipes session JSON to the script on stdin on each render; the script
-prints the four lines above to stdout.
+prints the three lines above to stdout.
 
 ## Usage windows
 
-Lines 2 and 3 show your subscription usage (the 5-hour, 7-day, and extra-usage
-windows). This data comes from `https://api.anthropic.com/api/oauth/usage`, an
-**undocumented** endpoint, authenticated with your Claude Code OAuth token. It
-works today but is not a supported API and may change or break without notice.
-If it stops responding, lines 1 and 4 still render fine — only the bars and
-reset times drop out.
+Line 2 shows your subscription usage (the 5-hour and 7-day windows). This data
+comes from `https://api.anthropic.com/api/oauth/usage`, an **undocumented**
+endpoint, authenticated with your Claude Code OAuth token. It works today but is
+not a supported API and may change or break without notice. If it stops
+responding, lines 1 and 3 still render fine — only the bars and reset times drop
+out.
 
 The OAuth token is read at runtime, never stored in the script. It is resolved
 in this order:
