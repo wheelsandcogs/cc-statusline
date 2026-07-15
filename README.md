@@ -9,7 +9,7 @@ dependencies beyond the standard CLI tools.
 
 ```
 Opus 4.8 | 139k / 1.0m 14% | thinking: On | effort: high | ⏱ 1h 23m
-current: ▰ ▰ ▰ ▱ ▱ ▱ ▱  47% (15:49) | weekly: ▰ ▰ ▱ ▱ ▱ ▱ ▱  32% (20th Jul, 06:59) | cost: $3.47
+current: ████▋░░░░░  47% (15:49) | weekly: ███▎░░░░░░  32% (20th Jul, 06:59) | cost: $3.47
 statswales-backend | ⎇ owner/repo (feature-branch)
 ```
 

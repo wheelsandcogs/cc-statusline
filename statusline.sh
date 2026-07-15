@@ -51,7 +51,7 @@ format_duration() {
     fi
 }
 
-# Build a colored progress bar
+# Build a colored progress bar with partial (1/8-cell) fill resolution.
 # Usage: build_bar <pct> <width>
 build_bar() {
     local pct=$1
@@ -59,12 +59,12 @@ build_bar() {
     [ "$pct" -lt 0 ] 2>/dev/null && pct=0
     [ "$pct" -gt 100 ] 2>/dev/null && pct=100
 
-    # Round to nearest cell, but show at least one cell for any non-zero usage
-    # (with only 7 cells, each is ~14%, so flooring hides low percentages).
-    local filled=$(( (pct * width + 50) / 100 ))
-    [ "$filled" -eq 0 ] && [ "$pct" -gt 0 ] && filled=1
-    [ "$filled" -gt "$width" ] && filled=$width
-    local empty=$(( width - filled ))
+    # Work in eighths of a cell so the leading cell can be partially filled.
+    local eighths=$(( (pct * width * 8 + 50) / 100 ))   # round to nearest 1/8
+    local full=$(( eighths / 8 ))
+    local rem=$(( eighths % 8 ))
+    # Left-to-right eighth blocks: 1/8 .. 7/8 (full cell uses █)
+    local parts=("" "▏" "▎" "▍" "▌" "▋" "▊" "▉")
 
     # Color based on usage level
     local bar_color
@@ -74,11 +74,16 @@ build_bar() {
     else bar_color="$green"
     fi
 
-    # Trailing space after each cell gives the reference "spaced segment" look.
-    # Visible width of the returned bar is therefore 2 * width.
-    local filled_str="" empty_str=""
-    for ((i=0; i<filled; i++)); do filled_str+="▰ "; done
-    for ((i=0; i<empty; i++)); do empty_str+="▱ "; done
+    local filled_str="" cells=0
+    for ((i=0; i<full; i++)); do filled_str+="█"; done
+    cells=$full
+    if [ "$rem" -gt 0 ] && [ "$full" -lt "$width" ]; then
+        filled_str+="${parts[$rem]}"
+        cells=$(( cells + 1 ))
+    fi
+
+    local empty_str=""
+    for ((i=cells; i<width; i++)); do empty_str+="░"; done
 
     printf "${bar_color}${filled_str}${dim}${empty_str}${reset}"
 }
@@ -334,7 +339,7 @@ line2=""
 sep=" ${dim}|${reset} "
 
 if [ -n "$usage_data" ] && echo "$usage_data" | jq -e . >/dev/null 2>&1; then
-    bar_width=7
+    bar_width=10
 
     # ---- 5-hour (current) ----
     five_hour_pct=$(echo "$usage_data" | jq -r '.five_hour.utilization // 0' | awk '{printf "%.0f", $1}')
