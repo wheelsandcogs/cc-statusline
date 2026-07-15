@@ -8,16 +8,14 @@ dependencies beyond the standard CLI tools.
 ## What it shows
 
 ```
-Opus 4.8 | 139k / 1.0m 14% | thinking: On | effort: high
-current: ▰ ▰ ▰ ▱ ▱ ▱ ▱  47% | weekly: ▰ ▰ ▱ ▱ ▱ ▱ ▱  32% | cost: $3.47
-resets 15:49 | resets 20th Jul, 06:59 | ⏱ 1h 23m
+Opus 4.8 | 139k / 1.0m 14% | thinking: On | effort: high | ⏱ 1h 23m
+current: ▰ ▰ ▰ ▱ ▱ ▱ ▱  47% (15:49) | weekly: ▰ ▰ ▱ ▱ ▱ ▱ ▱  32% (20th Jul, 06:59) | cost: $3.47
 statswales-backend | ⎇ owner/repo (feature-branch)
 ```
 
-1. **Model** · tokens used / context size · % used · % remaining · thinking on/off · reasoning effort
-2. **Usage bars** — current 5-hour window, 7-day window, extra usage (when enabled) · session cost
-3. **Resets** — when each usage window resets · session duration
-4. **Workspace** — project directory · `owner/repo` · git worktree (when inside one)
+1. **Model** · tokens used / context size · % used · thinking on/off · reasoning effort · session duration
+2. **Usage bars** — current 5-hour window, 7-day window, extra usage (when enabled), each with its reset time in parentheses · session cost
+3. **Workspace** — project directory · `owner/repo` · git worktree (when inside one)
 
 Each segment hides itself when its data is unavailable, so nothing renders
 broken outside a git repo or on models without a reasoning-effort setting.

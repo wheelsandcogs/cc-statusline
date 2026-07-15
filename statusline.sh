@@ -1,8 +1,7 @@
 #!/bin/bash
-# Line 1: Model | tokens used/total | % used | thinking: on/off | effort
-# Line 2: current: <progressbar> % | weekly: <progressbar> % | extra: <progressbar> $used/$limit | cost: $X.XX
-# Line 3: resets <time> | resets <datetime> | resets <date> | <duration>
-# Line 4: <projectdir> | <repo owner/name> (<worktree>)
+# Line 1: Model | tokens used/total % used | thinking: on/off | effort | <duration>
+# Line 2: current: <progressbar> % (<reset>) | weekly: <progressbar> % (<reset>) | extra: <progressbar> $used/$limit (<reset>) | cost: $X.XX
+# Line 3: <projectdir> | <repo owner/name> (<worktree>)
 
 set -f  # disable globbing
 
@@ -109,7 +108,10 @@ thinking_val=$(echo "$input" | jq -r '.thinking.enabled // false')
 # Reasoning effort — absent when the current model doesn't support it
 effort_level=$(echo "$input" | jq -r '.effort.level // empty')
 
-# ===== LINE 1: Model | tokens used/total | % used | thinking | effort =====
+# Session wall-clock time — shown at the end of line 1
+duration_ms=$(echo "$input" | jq -r '.cost.total_duration_ms // 0')
+
+# ===== LINE 1: Model | tokens % | thinking | effort | session time =====
 line1=""
 line1+="${blue}${model_name}${reset}"
 line1+=" ${dim}|${reset} "
@@ -127,13 +129,16 @@ if [ -n "$effort_level" ]; then
     line1+=" ${dim}|${reset} "
     line1+="effort: ${orange}${effort_level}${reset}"
 fi
+if [ "$duration_ms" -gt 0 ] 2>/dev/null; then
+    line1+=" ${dim}|${reset} "
+    line1+="${dim}⏱${reset} ${white}$(format_duration $duration_ms)${reset}"
+fi
 
-# ===== CONTEXT LINE: project dir | repo owner/name (worktree) | session length =====
+# ===== CONTEXT LINE: project dir | repo owner/name (worktree) =====
 project_dir=$(echo "$input" | jq -r '.workspace.project_dir // empty')
 repo_owner=$(echo "$input" | jq -r '.workspace.repo.owner // empty')
 repo_name=$(echo "$input" | jq -r '.workspace.repo.name // empty')
 worktree=$(echo "$input" | jq -r '.workspace.git_worktree // empty')
-duration_ms=$(echo "$input" | jq -r '.cost.total_duration_ms // 0')
 total_cost=$(echo "$input" | jq -r '.cost.total_cost_usd // 0')
 
 line_ctx=""
@@ -321,63 +326,30 @@ format_reset_time() {
     esac
 }
 
-# Pad column to fixed width (ignoring ANSI codes)
-# Usage: pad_column <text_with_ansi> <visible_length> <column_width>
-pad_column() {
-    local text="$1"
-    local visible_len=$2
-    local col_width=$3
-    local padding=$(( col_width - visible_len ))
-    if [ "$padding" -gt 0 ]; then
-        printf "%s%*s" "$text" "$padding" ""
-    else
-        printf "%s" "$text"
-    fi
-}
-
 line2=""
-line3=""
 sep=" ${dim}|${reset} "
 
 if [ -n "$usage_data" ] && echo "$usage_data" | jq -e . >/dev/null 2>&1; then
     bar_width=7
-    # Spaced bar is 2*bar_width wide, then a 2-space gap before the % / value.
-    # Column width = label + bar + 2-space gap + up to 3-digit % + '%' margin.
-    col1w=$(( 9 + 2 * bar_width + 6 ))   # "current: " label
-    col2w=$(( 8 + 2 * bar_width + 6 ))   # "weekly: " label
 
     # ---- 5-hour (current) ----
     five_hour_pct=$(echo "$usage_data" | jq -r '.five_hour.utilization // 0' | awk '{printf "%.0f", $1}')
     five_hour_reset_iso=$(echo "$usage_data" | jq -r '.five_hour.resets_at // empty')
     five_hour_reset=$(format_reset_time "$five_hour_reset_iso" "time")
     five_hour_bar=$(build_bar "$five_hour_pct" "$bar_width")
-
-    # Visible length: "current: " + spaced bar (2*bar_width) + 2-space gap + "XX%"
-    col1_bar_vis_len=$(( 9 + 2 * bar_width + 2 + ${#five_hour_pct} + 1 ))
-    col1_bar="${white}current:${reset} ${five_hour_bar}  ${cyan}${five_hour_pct}%${reset}"
-    col1_bar=$(pad_column "$col1_bar" "$col1_bar_vis_len" "$col1w")
-
-    col1_reset_plain="resets ${five_hour_reset}"
-    col1_reset="${white}resets ${five_hour_reset}${reset}"
-    col1_reset=$(pad_column "$col1_reset" "${#col1_reset_plain}" "$col1w")
+    col1="${white}current:${reset} ${five_hour_bar}  ${cyan}${five_hour_pct}%${reset}"
+    [ -n "$five_hour_reset" ] && col1+=" ${dim}(${five_hour_reset})${reset}"
 
     # ---- 7-day (weekly) ----
     seven_day_pct=$(echo "$usage_data" | jq -r '.seven_day.utilization // 0' | awk '{printf "%.0f", $1}')
     seven_day_reset_iso=$(echo "$usage_data" | jq -r '.seven_day.resets_at // empty')
     seven_day_reset=$(format_reset_time "$seven_day_reset_iso" "datetime")
     seven_day_bar=$(build_bar "$seven_day_pct" "$bar_width")
-
-    col2_bar_vis_len=$(( 8 + 2 * bar_width + 2 + ${#seven_day_pct} + 1 ))
-    col2_bar="${white}weekly:${reset} ${seven_day_bar}  ${cyan}${seven_day_pct}%${reset}"
-    col2_bar=$(pad_column "$col2_bar" "$col2_bar_vis_len" "$col2w")
-
-    col2_reset_plain="resets ${seven_day_reset}"
-    col2_reset="${white}resets ${seven_day_reset}${reset}"
-    col2_reset=$(pad_column "$col2_reset" "${#col2_reset_plain}" "$col2w")
+    col2="${white}weekly:${reset} ${seven_day_bar}  ${cyan}${seven_day_pct}%${reset}"
+    [ -n "$seven_day_reset" ] && col2+=" ${dim}(${seven_day_reset})${reset}"
 
     # ---- Extra usage ----
-    col3_bar=""
-    col3_reset=""
+    col3=""
     extra_enabled=$(echo "$usage_data" | jq -r '.extra_usage.is_enabled // false')
     if [ "$extra_enabled" = "true" ]; then
         extra_pct=$(echo "$usage_data" | jq -r '.extra_usage.utilization // 0' | awk '{printf "%.0f", $1}')
@@ -388,17 +360,13 @@ if [ -n "$usage_data" ] && echo "$usage_data" | jq -e . >/dev/null 2>&1; then
         # Next month 1st for reset date (macOS compatible)
         extra_reset="1st $(date -v+1m -v1d +%b 2>/dev/null || date -d "$(date +%Y-%m-01) +1 month" +%b 2>/dev/null)"
 
-        col3_bar="${white}extra:${reset} ${extra_bar}  ${cyan}\$${extra_used}/\$${extra_limit}${reset}"
-        col3_reset="${white}resets ${extra_reset}${reset}"
+        col3="${white}extra:${reset} ${extra_bar}  ${cyan}\$${extra_used}/\$${extra_limit}${reset}"
+        [ -n "$extra_reset" ] && col3+=" ${dim}(${extra_reset})${reset}"
     fi
 
-    # Assemble line 2: bars row
-    line2="${col1_bar}${sep}${col2_bar}"
-    [ -n "$col3_bar" ] && line2+="${sep}${col3_bar}"
-
-    # Assemble line 3: resets row
-    line3="${col1_reset}${sep}${col2_reset}"
-    [ -n "$col3_reset" ] && line3+="${sep}${col3_reset}"
+    # Assemble line 2: bars row, each with its reset time in parentheses
+    line2="${col1}${sep}${col2}"
+    [ -n "$col3" ] && line2+="${sep}${col3}"
 fi
 
 # Append cost to the bars row (line 2)
@@ -410,20 +378,9 @@ else
     line2="${cost_seg}"
 fi
 
-# Append session length to the resets row (line 3)
-if [ "$duration_ms" -gt 0 ] 2>/dev/null; then
-    dur_seg="${dim}⏱${reset} ${white}$(format_duration $duration_ms)${reset}"
-    if [ -n "$line3" ]; then
-        line3+="${sep}${dur_seg}"
-    else
-        line3="${dur_seg}"
-    fi
-fi
-
 # Output all lines
 printf "%b" "$line1"
 [ -n "$line2" ] && printf "\n%b" "$line2"
-[ -n "$line3" ] && printf "\n%b" "$line3"
 [ -n "$line_ctx" ] && printf "\n%b" "$line_ctx"
 
 exit 0
